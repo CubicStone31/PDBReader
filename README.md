@@ -52,8 +52,8 @@ int main()
 }
 ```
 
-You should also place `msdia140.dll` and `symsrv.dll` in the same folder as your application's working directory
+You should also place `msdia140.dll` and `symsrv.dll` in your application's working directory
 
-## About
+## Supported platform
 
-Only x64 binary are supported.
+The program is tested on Windows 10 x64, and should be woking any windows version.
