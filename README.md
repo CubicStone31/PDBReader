@@ -60,4 +60,4 @@ int main()
 
 ## Supported platform
 
-The program is tested on Windows 10 x64, and should be woking any windows version.
+The program is tested on Windows 10 x64, and should be woking on any version of windows.
