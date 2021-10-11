@@ -2,6 +2,10 @@
 
 Automatically download pdb file from windows symbol server and read symbol data from it.
 
+## How to use
+
+add pdbreader.cpp and pdbreader.h to your project, and include pdbreader.h
+
 ## Interfaces
 
 ```c
