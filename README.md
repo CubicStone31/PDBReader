@@ -6,6 +6,8 @@ Automatically download pdb file from windows symbol server and read symbol data 
 
 add pdbreader.cpp and pdbreader.h to your project, and include pdbreader.h
 
+When your application runs, make sure `msdia140.dll` and `symsrv.dll` are placed in your application's working directory. These files are under "3rd" folder of this project.
+
 ## Interfaces
 
 ```c
@@ -55,8 +57,6 @@ int main()
     return 0;
 }
 ```
-
-You should also place `msdia140.dll` and `symsrv.dll` in your application's working directory
 
 ## Supported platform
 
