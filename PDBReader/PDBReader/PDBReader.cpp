@@ -57,6 +57,14 @@ PDBReader::PDBReader(std::wstring executable_name, std::wstring search_path)
 
 std::optional<DWORD> PDBReader::FindSymbol(std::wstring sym, DWORD& type)
 {
+    // lookup in cache
+    // it seems that com api such as findchildren() will also cache its result. 
+    // however, as I don't find any document about this we keep our simple cache system here.
+    if (symbolRVACache.find(sym) != symbolRVACache.end())
+    {
+        return symbolRVACache[sym];
+    }
+
     CComPtr<IDiaEnumSymbols> pEnumSymbols;
     HRESULT hr = pGlobal->findChildren(SymTagEnum::SymTagNull, sym.c_str(), nsfCaseSensitive, &pEnumSymbols);
     if (FAILED(hr))
@@ -84,6 +92,12 @@ std::optional<DWORD> PDBReader::FindSymbol(std::wstring sym, DWORD& type)
     }
     DWORD rva = 0;
     hr = pSymbol->get_relativeVirtualAddress(&rva);
+
+    // add to cache to speed up next lookup
+    if (symbolRVACache.find(sym) == symbolRVACache.end())
+    {
+        symbolRVACache[sym] = rva;
+    }
     return rva;
 }
 

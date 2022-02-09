@@ -8,22 +8,15 @@ int main()
         PDBReader::CoInit();
 
         PDBReader reader2(L"F:\\test.pdb");  
-        std::wstring symbol;
-        DWORD type = 0;
-        reader2.FindNearestSymbolFromRVA(0x810970, symbol, type);
-        std::wcout << L"Name: " << symbol.c_str() << std::endl;
-        std::cout << "Type: " << type << std::endl;
-     
+        for (int i = 0; i < 100; i++)
+        {
+            auto t1 = GetTickCount();
+            reader2.FindFunction(L"_oi_symmetry_encrypt2");
+            auto t2 = GetTickCount();
+            std::cout << "time " << t2 - t1 << " for " << i << " loop\n";
+        }
 
-        auto value = reader2.FindStructSize(L"CGameSocket");
-        if (!value)
-        {
-            std::cout << "Not Found.\n";
-        }
-        else
-        {
-            std::cout << value.value() << std::endl;
-        }
+
 
         system("pause");
     }

@@ -3,6 +3,7 @@
 #include <atlbase.h>
 #include <dia2.h>
 #include <optional>
+#include <map>
 
 class PDBReader 
 {
@@ -34,4 +35,5 @@ private:
     static inline std::wstring dia_dll_name = L"msdia140.dll";
     CComPtr<IDiaSession> pSession;
     CComPtr<IDiaSymbol> pGlobal;
+    std::map<std::wstring, DWORD> symbolRVACache;
 };
