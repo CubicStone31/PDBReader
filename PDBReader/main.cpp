@@ -15,7 +15,7 @@ int main()
         std::cout << "Type: " << type << std::endl;
      
 
-        auto value = reader2.FindFunction(L"name");
+        auto value = reader2.FindStructSize(L"CGameSocket");
         if (!value)
         {
             std::cout << "Not Found.\n";

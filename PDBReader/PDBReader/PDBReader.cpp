@@ -148,6 +148,36 @@ std::optional<DWORD> PDBReader::FindStructMemberOffset(std::wstring structName, 
     return offset;
 }
 
+std::optional<UINT64> PDBReader::FindStructSize(std::wstring structName)
+{
+    CComPtr<IDiaEnumSymbols> pEnumSymbols;
+    HRESULT hr = pGlobal->findChildren(SymTagEnum::SymTagUDT, structName.c_str(), nsfCaseSensitive, &pEnumSymbols);
+    if (FAILED(hr))
+    {
+        return {};
+    }
+    LONG count = 0;
+    hr = pEnumSymbols->get_Count(&count);
+    if (count != 1 || (FAILED(hr)))
+    {
+        return {};
+    }
+    CComPtr<IDiaSymbol> pSymbol;
+    ULONG celt = 1;
+    hr = pEnumSymbols->Next(1, &pSymbol, &celt);
+    if ((FAILED(hr)) || (celt != 1))
+    {
+        return {};
+    }
+    UINT64 size;
+    hr = pSymbol->get_length(&size);
+    if (FAILED(hr))
+    {
+        return {};
+    }
+    return size;
+}
+
 void PDBReader::FindNearestSymbolFromRVA(DWORD rva, std::wstring& symbolName, DWORD& symbolType)
 {
     CComPtr<IDiaSymbol> target;

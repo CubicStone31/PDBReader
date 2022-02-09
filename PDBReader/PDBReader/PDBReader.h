@@ -19,6 +19,8 @@ public:
 
     std::optional<DWORD> FindStructMemberOffset(std::wstring structName, std::wstring memberName);
 
+    std::optional<UINT64> FindStructSize(std::wstring structName);
+
     void FindNearestSymbolFromRVA(DWORD rva, std::wstring& symbolName, DWORD& symbolType);
 
     // Helper function
