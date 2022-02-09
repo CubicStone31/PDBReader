@@ -5,20 +5,25 @@ int main()
 {
     try
     {
-        PDBReader::COINIT(COINIT_APARTMENTTHREADED);
+        PDBReader::CoInit();
 
-        std::cout << "Start downloading symbol files\n";
-        PDBReader::DownloadPDBForFile(L"C:\\windows\\system32\\ntoskrnl.exe", L"Symbols");
-        std::cout << "Download pdb succeed." << std::endl;
+        PDBReader reader2(L"F:\\test.pdb");  
+        std::wstring symbol;
+        DWORD type = 0;
+        reader2.FindNearestSymbolFromRVA(0x810970, symbol, type);
+        std::wcout << L"Name: " << symbol.c_str() << std::endl;
+        std::cout << "Type: " << type << std::endl;
+     
 
-        PDBReader reader2(L"C:\\windows\\system32\\ntoskrnl.exe", L"Symbols");
-        auto offset = reader2.FindStructMemberOffset(L"_EPROCESS", L"Protection");
-        if (!offset)
+        auto value = reader2.FindFunction(L"name");
+        if (!value)
         {
-            std::cout << "Failed to find target symbol.\n";
-            return 0;
+            std::cout << "Not Found.\n";
         }
-        std::cout << "Offset of Protection field in EPROCES: " << offset.value() << std::endl;
+        else
+        {
+            std::cout << value.value() << std::endl;
+        }
 
         system("pause");
     }

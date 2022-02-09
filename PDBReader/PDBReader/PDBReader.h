@@ -4,32 +4,32 @@
 #include <dia2.h>
 #include <optional>
 
-class PDBReader {
+class PDBReader 
+{
 public:
     PDBReader(std::wstring pdb_name);
 
     PDBReader(std::wstring executable_name, std::wstring search_path);
 
-    static void DownloadPDBForFile(std::wstring executable_name, std::wstring symbol_folder);
+    std::optional<DWORD> FindSymbol(std::wstring sym, DWORD& type);
 
-    std::optional<size_t> FindSymbol(std::wstring sym, DWORD& type);
+    std::optional<DWORD> FindConst(std::wstring const_name);
 
-    std::optional<size_t> FindConst(std::wstring const_name);
+    std::optional<DWORD> FindFunction(std::wstring func);
 
-    std::optional<size_t> FindFunction(std::wstring func);
+    std::optional<DWORD> FindStructMemberOffset(std::wstring structName, std::wstring memberName);
 
-    std::optional<LONG> FindStructMemberOffset(std::wstring structName, std::wstring memberName);
+    void FindNearestSymbolFromRVA(DWORD rva, std::wstring& symbolName, DWORD& symbolType);
 
-    // ~PDBReader();
+    // Helper function
+    static void DownloadPDBForFile(std::wstring executable_name, std::wstring symbol_folder, std::wstring SYMBOL_SERVER_URL = L"https://msdl.microsoft.com/download/symbols");
 
-    static HRESULT COINIT(DWORD init_flag);
-
-    static HRESULT CreateDiaDataSourceWithoutComRegistration(IDiaDataSource** data_source);
+    static HRESULT CoInit(DWORD init_flag = COINIT_MULTITHREADED);
 
 private:
+    static HRESULT CreateDiaDataSourceWithoutComRegistration(IDiaDataSource** data_source);
+
     static inline std::wstring dia_dll_name = L"msdia140.dll";
-
     CComPtr<IDiaSession> pSession;
-
     CComPtr<IDiaSymbol> pGlobal;
 };
