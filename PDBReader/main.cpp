@@ -6,24 +6,21 @@ int main()
     try
     {
         PDBReader::CoInit();
-
-        PDBReader reader2(L"F:\\test.pdb");  
-        for (int i = 0; i < 100; i++)
+        std::cout << "Start downloading symbol files\n";
+        PDBReader::DownloadPDBForFile(L"C:\\windows\\system32\\ntoskrnl.exe", L"Symbols");
+        std::cout << "Download pdb succeed." << std::endl;
+        PDBReader reader(L"C:\\windows\\system32\\ntoskrnl.exe", L"Symbols");
+        auto offset = reader.FindStructMemberOffset(L"_EPROCESS", L"Protection");
+        if (!offset)
         {
-            auto t1 = GetTickCount();
-            reader2.FindFunction(L"_oi_symmetry_encrypt2");
-            auto t2 = GetTickCount();
-            std::cout << "time " << t2 - t1 << " for " << i << " loop\n";
+            std::cout << "Failed to find target symbol.\n";
+            return 0;
         }
-
-
-
-        system("pause");
+        std::cout << "Offset of Protection field in EPROCES: " << offset.value() << std::endl;
     }
     catch (std::exception e)
     {
         std::cout << e.what() << std::endl;
     }
-
     return 0;
 }

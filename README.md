@@ -6,20 +6,28 @@ Automatically download pdb file from windows symbol server and read symbol data 
 
 add pdbreader.cpp and pdbreader.h to your project, and include pdbreader.h
 
-When your application runs, make sure `msdia140.dll` and `symsrv.dll` are placed in your application's working directory. These files are under "3rd" folder of this project.
+Add dia2.h to your include directory, and link to diaguids.lib. These files should be found at dia sdk, which is normally at "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\DIA SDK\".
+
+When your application runs, make sure `msdia140.dll` and `symsrv.dll` are placed in your application's working directory. They should be found at dia sdk and windbg sdk.
+
+You can also found these files at "3rdparty" folder of this project.
 
 ## Interfaces
 
 ```c
-static void DownloadPDBForFile(std::wstring executable_name, std::wstring symbol_folder);
+std::optional<DWORD> FindSymbol(std::wstring sym, DWORD& type);
 
-std::optional<size_t> FindSymbol(std::wstring sym, DWORD& type); // Find a global symbol by name and return its address and type
+std::optional<DWORD> FindConst(std::wstring const_name);
 
-std::optional<size_t> FindConst(std::wstring const_name);
+std::optional<DWORD> FindFunction(std::wstring func);
 
-std::optional<size_t> FindFunction(std::wstring func);
+std::optional<DWORD> FindStructMemberOffset(std::wstring structName, std::wstring memberName);
 
-std::optional<LONG> FindStructMemberOffset(std::wstring structName, std::wstring memberName);
+std::optional<UINT64> FindStructSize(std::wstring structName);
+
+void FindNearestSymbolFromRVA(DWORD rva, std::wstring& symbolName, DWORD& symbolType);
+
+static void DownloadPDBForFile(std::wstring executable_name, std::wstring symbol_folder, std::wstring SYMBOL_SERVER_URL = L"https://msdl.microsoft.com/download/symbols");
 ```
 
 ## Example for usage
@@ -32,32 +40,27 @@ int main()
 {
     try
     {
-        PDBReader::COINIT(COINIT_APARTMENTTHREADED);
-
+        PDBReader::CoInit();
         std::cout << "Start downloading symbol files\n";
         PDBReader::DownloadPDBForFile(L"C:\\windows\\system32\\ntoskrnl.exe", L"Symbols");
         std::cout << "Download pdb succeed." << std::endl;
-
-        PDBReader reader2(L"C:\\windows\\system32\\ntoskrnl.exe", L"Symbols");
-        auto offset = reader2.FindStructMemberOffset(L"_EPROCESS", L"Protection");
+        PDBReader reader(L"C:\\windows\\system32\\ntoskrnl.exe", L"Symbols");
+        auto offset = reader.FindStructMemberOffset(L"_EPROCESS", L"Protection");
         if (!offset)
         {
             std::cout << "Failed to find target symbol.\n";
-            return;
+            return 0;
         }
         std::cout << "Offset of Protection field in EPROCES: " << offset.value() << std::endl;
-
-        system("pause");
     }
     catch (std::exception e)
     {
         std::cout << e.what() << std::endl;
     }
-
     return 0;
 }
 ```
 
 ## Supported platform
 
-The program is tested on Windows 10 x64, and should be woking on any version of windows.
+The program is tested on Windows 10 x64 and x86, but should be woking on any version of windows.
