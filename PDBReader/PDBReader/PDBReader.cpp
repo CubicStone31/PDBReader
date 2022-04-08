@@ -33,7 +33,7 @@ PDBReader::PDBReader(std::wstring executable_name, std::wstring search_path)
     HRESULT hr = CreateDiaDataSourceWithoutComRegistration(&pSource);
     if (FAILED(hr))
     {
-        throw std::exception("Could not CoCreate CLSID_DiaSource. You should place msdiaXX.dll in current folder.");
+        throw std::exception("Could not CoCreate CLSID_DiaSource. Maybe msdiaxxx.dll cannot be found.");
     }
     // using format: srv*search_path* to treat target folder as a symbol cache and search it recursively
     std::wstring search_str = std::filesystem::absolute(search_path);
@@ -226,6 +226,11 @@ HRESULT PDBReader::CoInit(DWORD init_flag)
     return CoInitializeEx(0, init_flag);
 }
 
+void PDBReader::SetMsdiaDllPath(std::wstring p)
+{
+    dia_dll_full_path = p;
+}
+
 void PDBReader::DownloadPDBForFile(std::wstring executable_name, std::wstring symbol_folder, std::wstring SYMBOL_SERVER_URL)
 {
     CComPtr<IDiaDataSource> pSource;
@@ -245,22 +250,17 @@ void PDBReader::DownloadPDBForFile(std::wstring executable_name, std::wstring sy
     return;
 }
 
-// We dont want to regsvr32 msdia140.dll on client's machine...
 HRESULT PDBReader::CreateDiaDataSourceWithoutComRegistration(IDiaDataSource** data_source)
 {
     HMODULE hmodule = LoadLibraryW(PDBReader::dia_dll_name.c_str());
-    // try to load dia dll in the same folder as main executable's
+    // try to load dia dll using the full name
+    if (!hmodule && dia_dll_full_path != L"")
+    {
+        hmodule = LoadLibraryW(dia_dll_full_path.c_str());
+    }
     if (!hmodule)
     {
-        wchar_t temp[MAX_PATH] = { 0 };
-        GetModuleFileNameW(0, temp, MAX_PATH);
-        std::filesystem::path dllPath(temp);
-        dllPath = dllPath.parent_path() / L"msdia140.dll";
-        hmodule = LoadLibraryW(dllPath.c_str());
-        if (!hmodule)
-        {
-            return HRESULT_FROM_WIN32(GetLastError()); // library not found
-        }
+        return HRESULT_FROM_WIN32(GetLastError());
     }
     HRESULT(WINAPI * DllGetClassObject)(REFCLSID, REFIID, LPVOID*) = (HRESULT(WINAPI*)(REFCLSID, REFIID, LPVOID*))GetProcAddress(hmodule, "DllGetClassObject");
     if (!DllGetClassObject)

@@ -29,10 +29,14 @@ public:
 
     static HRESULT CoInit(DWORD init_flag = COINIT_MULTITHREADED);
 
+    static void SetMsdiaDllPath(std::wstring p);
+
 private:
     static HRESULT CreateDiaDataSourceWithoutComRegistration(IDiaDataSource** data_source);
 
     static inline std::wstring dia_dll_name = L"msdia140.dll";
+    static inline std::wstring dia_dll_full_path = L"";
+
     CComPtr<IDiaSession> pSession;
     CComPtr<IDiaSymbol> pGlobal;
     std::map<std::wstring, DWORD> symbolRVACache;
