@@ -1,5 +1,6 @@
 ﻿#include "PDBReader.h"
 #include <filesystem>
+#include <fstream>
 
 PDBReader::PDBReader(std::wstring pdb_name)
 {
@@ -219,6 +220,56 @@ void PDBReader::FindNearestSymbolFromRVA(DWORD rva, std::wstring& symbolName, DW
     symbolName = bstrName;
     SysFreeString(bstrName);
     return ;
+}
+
+void PDBReader::DumpFunctions(const std::wstring out_file)
+{
+    std::ofstream out;
+    out.open(out_file, std::ofstream::binary);
+    if (!out.is_open())
+    {
+        throw std::exception("cannot create file for output");
+    }
+
+    CComPtr<IDiaEnumSymbols> pEnumSymbols;
+    HRESULT hr = pGlobal->findChildren(SymTagEnum::SymTagFunction, 0, nsfCaseSensitive, &pEnumSymbols);
+    if (FAILED(hr))
+    {
+        throw std::exception("findChildren() with null name failed.");
+    }
+    LONG count = 0;
+    hr = pEnumSymbols->get_Count(&count);
+    if (count == 0 || (FAILED(hr)))
+    {
+        throw std::exception("get_Count() failed or returned zero");
+    }
+    while (true)
+    {
+        CComPtr<IDiaSymbol> pSymbol;
+        ULONG celt = 1;
+        hr = pEnumSymbols->Next(1, &pSymbol, &celt);
+        if ((FAILED(hr)) || (celt != 1))
+        {
+            break;
+        }
+        DWORD rva = 0;
+        hr = pSymbol->get_relativeVirtualAddress(&rva);
+        if (FAILED(hr))
+        {
+            continue;
+        }
+        CComBSTR name;
+        hr = pSymbol->get_name(&name);
+        if (FAILED(hr))
+        {
+            continue;
+        }       
+        out.write((char*)name.m_str, 2 * (wcslen(name.m_str) + 1));
+        out.write((char*)L"\t", 2);
+        auto addr = std::to_wstring(rva);
+        out.write((char*)addr.c_str(), 2 * (1 + addr.size()));
+        out.write((char*)L"\n", 2);
+    }
 }
 
 HRESULT PDBReader::CoInit(DWORD init_flag)

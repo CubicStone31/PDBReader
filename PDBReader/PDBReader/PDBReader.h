@@ -24,6 +24,8 @@ public:
 
     void FindNearestSymbolFromRVA(DWORD rva, std::wstring& symbolName, DWORD& symbolType);
 
+    void DumpFunctions(const std::wstring out_file);
+
     // Helper function
     static void DownloadPDBForFile(std::wstring executable_name, std::wstring symbol_folder, std::wstring SYMBOL_SERVER_URL = L"https://msdl.microsoft.com/download/symbols");
 
