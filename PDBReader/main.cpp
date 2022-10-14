@@ -19,7 +19,11 @@ int main()
         std::cout << "Offset of Protection field in EPROCES: " << offset.value() << std::endl;*/
 
         PDBReader reader(L"test.pdb");
-        reader.DumpFunctions(L"test.txt");
+        std::wstring name;
+        DWORD type;
+        reader.FindNearestSymbolFromRVA(0x48232e8, name, type);
+        printf("%ws\n", name.c_str());
+        getchar();
     }
     catch (std::exception e)
     {

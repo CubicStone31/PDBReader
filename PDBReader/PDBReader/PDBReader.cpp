@@ -1,6 +1,14 @@
 ﻿#include "PDBReader.h"
 #include <filesystem>
 #include <fstream>
+#include <string>
+#include <codecvt>
+
+std::string wstring2stringbytruncation(const std::wstring& in)
+{
+    std::string str(in.begin(), in.end());
+    return str;
+}
 
 PDBReader::PDBReader(std::wstring pdb_name)
 {
@@ -230,7 +238,6 @@ void PDBReader::DumpFunctions(const std::wstring out_file)
     {
         throw std::exception("cannot create file for output");
     }
-
     CComPtr<IDiaEnumSymbols> pEnumSymbols;
     HRESULT hr = pGlobal->findChildren(SymTagEnum::SymTagFunction, 0, nsfCaseSensitive, &pEnumSymbols);
     if (FAILED(hr))
@@ -243,8 +250,15 @@ void PDBReader::DumpFunctions(const std::wstring out_file)
     {
         throw std::exception("get_Count() failed or returned zero");
     }
-    while (true)
+
+    printf("total %d functions to dump\n", count);
+
+    for (int i = 0; ; i += 1)
     {
+        if ((i % 100) == 0)
+        {
+            printf("progress: %d / %d\n", i, count);
+        }
         CComPtr<IDiaSymbol> pSymbol;
         ULONG celt = 1;
         hr = pEnumSymbols->Next(1, &pSymbol, &celt);
@@ -258,17 +272,18 @@ void PDBReader::DumpFunctions(const std::wstring out_file)
         {
             continue;
         }
-        CComBSTR name;
-        hr = pSymbol->get_name(&name);
+        CComBSTR tmp_name;
+        hr = pSymbol->get_name(&tmp_name);
         if (FAILED(hr))
         {
             continue;
         }       
-        out.write((char*)name.m_str, 2 * (wcslen(name.m_str) + 1));
-        out.write((char*)L"\t", 2);
-        auto addr = std::to_wstring(rva);
-        out.write((char*)addr.c_str(), 2 * (1 + addr.size()));
-        out.write((char*)L"\n", 2);
+        auto name = wstring2stringbytruncation(tmp_name.m_str);
+        out.write(name.c_str(), name.size());
+        out.write("\t", 1);
+        auto addr = std::to_string(rva);
+        out.write(addr.c_str(), addr.size());
+        out.write("\n", 1);
     }
 }
 
