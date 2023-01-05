@@ -4,10 +4,47 @@
 #include <dia2.h>
 #include <optional>
 #include <map>
+#include <list>
+#include <cstdint>
+#include <vector>
 
 class PDBReader 
 {
 public:
+    enum class Types
+    {
+        Unknown,
+        Integer,
+        UInteger,
+        Float,
+        Double,
+        Char,
+        Widechar,
+        Array,
+        Enum,
+        Class,
+    };
+
+    class TypeInfo
+    {
+    public:
+        Types type;
+        std::wstring freindly_name;
+        DWORD associated_type_obj_id;
+        uint32_t size;
+        // if type is an array
+        uint32_t arr_dim;
+        DWORD arr_element_type_id;
+    };
+
+    class FieldInfo
+    {
+    public:
+        TypeInfo type;
+        std::wstring name;
+        uint32_t offset;
+    };
+
     PDBReader(std::wstring pdb_name);
 
     PDBReader(std::wstring executable_name, std::wstring search_path);
@@ -26,6 +63,12 @@ public:
 
     void DumpFunctions(const std::wstring out_file);
 
+    const std::vector<FieldInfo> GetStructureFields(const std::wstring& structName);
+
+    const std::vector<FieldInfo> GetStructureFields(DWORD symbolId);
+
+    const TypeInfo GetTypeInfo(DWORD symbolId);
+
     // Helper function
     static void DownloadPDBForFile(std::wstring executable_name, std::wstring symbol_folder, std::wstring SYMBOL_SERVER_URL = L"https://msdl.microsoft.com/download/symbols");
 
@@ -42,4 +85,7 @@ private:
     CComPtr<IDiaSession> pSession;
     CComPtr<IDiaSymbol> pGlobal;
     std::map<std::wstring, DWORD> symbolRVACache;
+
+    const std::vector<FieldInfo> GetStructureFields(IDiaSymbol* sym);
+
 };

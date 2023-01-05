@@ -287,6 +287,40 @@ void PDBReader::DumpFunctions(const std::wstring out_file)
     }
 }
 
+const std::vector<PDBReader::FieldInfo> PDBReader::GetStructureFields(const std::wstring& structName)
+{
+    CComPtr<IDiaEnumSymbols> pEnumSymbols;
+    HRESULT hr = pGlobal->findChildren(SymTagEnum::SymTagUDT, structName.c_str(), nsfCaseSensitive, &pEnumSymbols);
+    if (FAILED(hr))
+    {
+        return {};
+    }
+    LONG count = 0;
+    hr = pEnumSymbols->get_Count(&count);
+    if (count != 1 || (FAILED(hr)))
+    {
+        return {};
+    }
+    CComPtr<IDiaSymbol> pSymbol;
+    ULONG celt = 1;
+    hr = pEnumSymbols->Next(1, &pSymbol, &celt);
+    if ((FAILED(hr)) || (celt != 1))
+    {
+        return {};
+    }
+    return GetStructureFields(pSymbol);
+}
+
+const std::vector<PDBReader::FieldInfo> PDBReader::GetStructureFields(DWORD symbolId)
+{
+    CComPtr<IDiaSymbol> pSymbol;
+    if (FAILED(pSession->symbolById(symbolId, &pSymbol)))
+    {
+        return {};
+    }
+    return GetStructureFields(pSymbol);
+}
+
 HRESULT PDBReader::CoInit(DWORD init_flag)
 {
     return CoInitializeEx(0, init_flag);
@@ -295,6 +329,122 @@ HRESULT PDBReader::CoInit(DWORD init_flag)
 void PDBReader::SetMsdiaDllPath(std::wstring p)
 {
     dia_dll_full_path = p;
+}
+
+const PDBReader::TypeInfo PDBReader::GetTypeInfo(DWORD symbolId)
+{
+    CComPtr<IDiaSymbol> sym;
+    if (FAILED(pSession->symbolById(symbolId, &sym)))
+    {
+        return {};
+    }
+    DWORD tag;
+    if (FAILED(sym->get_symTag(&tag)))
+    {
+        return {};
+    }
+    ULONGLONG size;
+    if (FAILED(sym->get_length(&size)) || !size)
+    {
+        return {};
+    }
+    DWORD id;
+    if (FAILED(sym->get_symIndexId(&id)))
+    {
+        return {};
+    }
+    TypeInfo ret = {};
+    ret.size = size;
+    ret.type = Types::Unknown;
+    ret.freindly_name = L"unknown";
+    ret.associated_type_obj_id = id;
+    switch (tag)
+    {
+    case SymTagUDT:
+    {
+        ret.type = Types::Class;
+        BSTR struct_name;
+        if (FAILED(sym->get_name(&struct_name)))
+        {
+            return {};
+        }
+        ret.freindly_name = struct_name;
+        SysFreeString(struct_name);
+        break;
+    }
+    case SymTagArrayType:
+    {
+        ret.type = Types::Array;
+        DWORD array_element_id;
+        if (FAILED(sym->get_typeId(&array_element_id)))
+        {
+            return {};
+        }
+        ret.arr_element_type_id = array_element_id;
+        auto element_type = GetTypeInfo(array_element_id);
+        if (!element_type.size)
+        {
+            return {};
+        }
+        if ((ret.size % element_type.size) != 0)
+        {
+            return {};
+        }
+        ret.arr_dim = ret.size / element_type.size;
+        ret.freindly_name = std::wstring(element_type.freindly_name) + L"[" + std::to_wstring(ret.arr_dim) + L"]";
+        break;
+    }
+    case SymTagBaseType:
+    {
+        DWORD base_type;
+        if (FAILED(sym->get_baseType(&base_type)))
+        {
+            break;
+        }
+        if (base_type == btChar || base_type == btChar8)
+        {
+            ret.type = Types::Char;
+            ret.freindly_name = L"char";
+            break;
+        }
+        else if (base_type == btWChar || base_type == btChar16)
+        {
+            ret.type = Types::Widechar;
+            ret.freindly_name = L"wchar";
+            break;
+        }
+        else if (base_type == btInt || base_type == btLong)
+        {
+            ret.type = Types::Integer;
+            ret.freindly_name = L"int" + std::to_wstring(ret.size * 8);
+            break;
+        }
+        else if (base_type == btUInt || base_type == btULong)
+        {
+            ret.type = Types::UInteger;
+            ret.freindly_name = L"uint" + std::to_wstring(ret.size * 8);
+            break;
+        }
+        else if (base_type == btFloat && ret.size == 4)
+        {
+            ret.type = Types::Float;
+            ret.freindly_name = L"float";
+            break;
+        }
+        else if (base_type == btFloat && ret.size == 8)
+        {
+            ret.type = Types::Double;
+            ret.freindly_name = L"double";
+            break;
+        }
+        break;
+    }
+    default:
+    {
+        break;
+    }
+    }
+    return ret;
 }
 
 void PDBReader::DownloadPDBForFile(std::wstring executable_name, std::wstring symbol_folder, std::wstring SYMBOL_SERVER_URL)
@@ -347,4 +497,65 @@ HRESULT PDBReader::CreateDiaDataSourceWithoutComRegistration(IDiaDataSource** da
     }
     pClassFactory->Release();
     return S_OK;
+}
+
+const std::vector<PDBReader::FieldInfo> PDBReader::GetStructureFields(IDiaSymbol* sym)
+{
+    CComPtr<IDiaEnumSymbols> pEnumSymbols;
+    if (FAILED(sym->findChildrenEx(SymTagEnum::SymTagNull, 0, nsfCaseSensitive, &pEnumSymbols)))
+    {
+        return {};
+    }
+    LONG count = 0;
+    if (FAILED(pEnumSymbols->get_Count(&count)))
+    {
+        return {};
+    }
+
+    auto ret = std::vector<FieldInfo>();
+    for (int i = 0; i < count; i++)
+    {
+        CComPtr<IDiaSymbol> field;
+        ULONG celt = 1;
+        if (FAILED(pEnumSymbols->Next(1, &field, &celt)))
+        {
+            return {};
+        }
+        DWORD tag;
+        if (FAILED(field->get_symTag(&tag)))
+        {
+            return {};
+        }
+        if (tag != SymTagData)
+        {
+            continue;
+        }
+        FieldInfo info = {};
+        BSTR field_name;
+        if (FAILED(field->get_name(&field_name)))
+        {
+            return {};
+        }
+        info.name = field_name;
+        SysFreeString(field_name);
+        LONG offset;
+        if (FAILED(field->get_offset(&offset)))
+        {
+            return {};
+        }
+        info.offset = offset;
+        DWORD type_obj_id;
+        if (FAILED(field->get_typeId(&type_obj_id)))
+        {
+            return {};
+        }
+        auto type = GetTypeInfo(type_obj_id);
+        if (!type.size)
+        {
+            return {};
+        }
+        info.type = type;
+        ret.push_back(info);
+    }
+    return ret;
 }
