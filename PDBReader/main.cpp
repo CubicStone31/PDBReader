@@ -19,6 +19,7 @@ int main()
         //std::cout << "Offset of Protection field in EPROCES: " << offset.value() << std::endl;
 
         PDBReader reader(L"test.pdb");
+        reader.DumpTypes(SymTagEnum::SymTagPublicSymbol, L"D:\\info.txt");
     }
     catch (std::exception e)
     {

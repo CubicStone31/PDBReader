@@ -256,7 +256,7 @@ void PDBReader::FindNearestSymbolFromRVA(DWORD rva, std::wstring& symbolName, DW
     return;
 }
 
-void PDBReader::DumpFunctions(const std::wstring out_file)
+void PDBReader::DumpTypes(enum SymTagEnum type, const std::wstring out_file)
 {
     std::ofstream out;
     out.open(out_file, std::ofstream::binary);
@@ -265,7 +265,7 @@ void PDBReader::DumpFunctions(const std::wstring out_file)
         throw std::exception("cannot create file for output");
     }
     CComPtr<IDiaEnumSymbols> pEnumSymbols;
-    HRESULT hr = pGlobal->findChildren(SymTagEnum::SymTagFunction, 0, nsfCaseSensitive, &pEnumSymbols);
+    HRESULT hr = pGlobal->findChildren(type, 0, nsfCaseSensitive, &pEnumSymbols);
     if (FAILED(hr))
     {
         throw std::exception("findChildren() with null name failed.");
@@ -277,7 +277,7 @@ void PDBReader::DumpFunctions(const std::wstring out_file)
         throw std::exception("get_Count() failed or returned zero");
     }
 
-    printf("total %d functions to dump\n", count);
+    printf("total %d types to dump\n", count);
 
     for (int i = 0; ; i += 1)
     {

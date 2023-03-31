@@ -64,7 +64,7 @@ public:
 
     void FindNearestSymbolFromRVA(DWORD rva, std::wstring& symbolName, DWORD& symbolType);
 
-    void DumpFunctions(const std::wstring out_file);
+    void DumpTypes(enum SymTagEnum type, const std::wstring out_file);
 
     const std::vector<FieldInfo> GetStructureFields(const std::wstring& structName);
 
