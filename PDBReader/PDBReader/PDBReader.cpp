@@ -201,6 +201,32 @@ std::optional<UINT64> PDBReader::FindStructSize(std::wstring structName)
     return size;
 }
 
+bool PDBReader::FindMostRelatedFunctionName(DWORD rva, std::wstring& funcname)
+{
+    if (!SortedFunctionRVANameList.size())
+    {
+        BuildSortedFunctionRVANameList();
+    }
+    if (std::get<0>(*SortedFunctionRVANameList.begin()) > rva)
+    {
+        return false;
+    }
+    for (auto itr = SortedFunctionRVANameList.begin(); itr != SortedFunctionRVANameList.end(); itr++)
+    {
+        auto next = std::next(itr, 1);
+        if (next == SortedFunctionRVANameList.end())
+        {
+            funcname = std::get<1>(*itr);
+            return true;
+        }
+        else if (std::get<0>(*next) > rva)
+        {
+            funcname = std::get<1>(*itr);
+            return true;
+        }
+    }
+}
+
 void PDBReader::FindNearestSymbolFromRVA(DWORD rva, std::wstring& symbolName, DWORD& symbolType)
 {
     CComPtr<IDiaSymbol> target;
@@ -227,7 +253,7 @@ void PDBReader::FindNearestSymbolFromRVA(DWORD rva, std::wstring& symbolName, DW
     }
     symbolName = bstrName;
     SysFreeString(bstrName);
-    return ;
+    return;
 }
 
 void PDBReader::DumpFunctions(const std::wstring out_file)
@@ -277,7 +303,7 @@ void PDBReader::DumpFunctions(const std::wstring out_file)
         if (FAILED(hr))
         {
             continue;
-        }       
+        }
         auto name = wstring2stringbytruncation(tmp_name.m_str);
         out.write(name.c_str(), name.size());
         out.write("\t", 1);
@@ -333,6 +359,10 @@ void PDBReader::SetMsdiaDllPath(std::wstring p)
 
 const PDBReader::TypeInfo PDBReader::GetTypeInfo(DWORD symbolId)
 {
+    if (symbolTypeInfoCache.find(symbolId) != symbolTypeInfoCache.end())
+    {
+        return symbolTypeInfoCache[symbolId];
+    }
     CComPtr<IDiaSymbol> sym;
     if (FAILED(pSession->symbolById(symbolId, &sym)))
     {
@@ -354,6 +384,7 @@ const PDBReader::TypeInfo PDBReader::GetTypeInfo(DWORD symbolId)
         return {};
     }
     TypeInfo ret = {};
+    ret.attached_pdb = this;
     ret.size = size;
     ret.type = Types::Unknown;
     ret.freindly_name = L"unknown";
@@ -444,6 +475,7 @@ const PDBReader::TypeInfo PDBReader::GetTypeInfo(DWORD symbolId)
         break;
     }
     }
+    symbolTypeInfoCache[symbolId] = ret;
     return ret;
 }
 
@@ -501,6 +533,15 @@ HRESULT PDBReader::CreateDiaDataSourceWithoutComRegistration(IDiaDataSource** da
 
 const std::vector<PDBReader::FieldInfo> PDBReader::GetStructureFields(IDiaSymbol* sym)
 {
+    DWORD id;
+    if (FAILED(sym->get_symIndexId(&id)))
+    {
+        return {};
+    }
+    if (structureFieldInfoCache.find(id) != structureFieldInfoCache.end())
+    {
+        return structureFieldInfoCache[id];
+    }
     CComPtr<IDiaEnumSymbols> pEnumSymbols;
     if (FAILED(sym->findChildrenEx(SymTagEnum::SymTagNull, 0, nsfCaseSensitive, &pEnumSymbols)))
     {
@@ -557,5 +598,53 @@ const std::vector<PDBReader::FieldInfo> PDBReader::GetStructureFields(IDiaSymbol
         info.type = type;
         ret.push_back(info);
     }
+    structureFieldInfoCache[id] = ret;
     return ret;
+}
+
+void PDBReader::BuildSortedFunctionRVANameList()
+{
+    CComPtr<IDiaEnumSymbols> pEnumSymbols;
+    HRESULT hr = pGlobal->findChildren(SymTagEnum::SymTagFunction, 0, nsfCaseSensitive, &pEnumSymbols);
+    if (FAILED(hr))
+    {
+        throw std::exception("findChildren() with null name failed.");
+    }
+    LONG count = 0;
+    hr = pEnumSymbols->get_Count(&count);
+    if (count == 0 || (FAILED(hr)))
+    {
+        throw std::exception("get_Count() failed or returned zero");
+    }
+    uint32_t current_distance = 0xffffffff;
+    std::wstring current_name;
+    for (int i = 0; ; i += 1)
+    {
+        CComPtr<IDiaSymbol> pSymbol;
+        ULONG celt = 1;
+        hr = pEnumSymbols->Next(1, &pSymbol, &celt);
+        if ((FAILED(hr)) || (celt != 1))
+        {
+            break;
+        }
+        DWORD function_rva = 0;
+        hr = pSymbol->get_relativeVirtualAddress(&function_rva);
+        if (FAILED(hr))
+        {
+            continue;
+        }
+        CComBSTR tmp_name;
+        hr = pSymbol->get_name(&tmp_name);
+        if (FAILED(hr))
+        {
+            continue;
+        }
+        std::wstring func_name(tmp_name);
+        SysFreeString(tmp_name);
+        SortedFunctionRVANameList.push_back(std::make_tuple((uint32_t)function_rva, func_name));
+    }
+
+    SortedFunctionRVANameList.sort([](const std::tuple<uint32_t, std::wstring>& p1, const std::tuple<uint32_t, std::wstring>& p2) -> bool {
+        return std::get<0>(p1) < std::get<0>(p2);
+        });;
 }

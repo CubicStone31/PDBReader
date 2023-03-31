@@ -8,7 +8,7 @@
 #include <cstdint>
 #include <vector>
 
-class PDBReader 
+class PDBReader
 {
 public:
     enum class Types
@@ -28,6 +28,7 @@ public:
     class TypeInfo
     {
     public:
+        PDBReader* attached_pdb;
         Types type;
         std::wstring freindly_name;
         DWORD associated_type_obj_id;
@@ -59,6 +60,8 @@ public:
 
     std::optional<UINT64> FindStructSize(std::wstring structName);
 
+    bool FindMostRelatedFunctionName(DWORD rva, std::wstring& funcname);
+
     void FindNearestSymbolFromRVA(DWORD rva, std::wstring& symbolName, DWORD& symbolType);
 
     void DumpFunctions(const std::wstring out_file);
@@ -84,8 +87,15 @@ private:
 
     CComPtr<IDiaSession> pSession;
     CComPtr<IDiaSymbol> pGlobal;
+
     std::map<std::wstring, DWORD> symbolRVACache;
+    std::map<DWORD, TypeInfo> symbolTypeInfoCache;
+    std::map<DWORD, std::vector<FieldInfo>> structureFieldInfoCache;
 
     const std::vector<FieldInfo> GetStructureFields(IDiaSymbol* sym);
+
+    void BuildSortedFunctionRVANameList();
+
+    std::list<std::tuple<uint32_t, std::wstring>> SortedFunctionRVANameList;
 
 };
